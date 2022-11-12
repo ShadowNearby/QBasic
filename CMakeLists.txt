@@ -15,7 +15,13 @@ find_package(Qt5 COMPONENTS
         Test
         REQUIRED)
 
-add_executable(QBasic main.cpp mainwindow.cpp mainwindow.h mainwindow.ui)
+add_executable(QBasic
+        main.cpp
+        mainwindow/mainwindow.cpp mainwindow/mainwindow.h mainwindow/mainwindow.ui
+        parser/Lexer.cpp parser/Lexer.h
+        parser/CommandParser.cpp parser/CommandParser.h
+        utility/QUtility.h
+        statement/Statement.cpp statement/Statement.h statement/Text.cpp statement/Text.h)
 target_link_libraries(QBasic
         Qt5::Core
         Qt5::Gui
