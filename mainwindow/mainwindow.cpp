@@ -11,7 +11,15 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnRunCode, &QPushButton::clicked, this, &MainWindow::btnRunCode_clicked);
     connect(ui->btnLoadCode, &QPushButton::clicked, this, &MainWindow::btnLoadCode_clicked);
     connect(ui->cmdLineEdit, &QLineEdit::returnPressed, this, &MainWindow::cmdLineEdit_return);
-    test();
+    connect(this, &MainWindow::sendCommand, &text, &Text::executeCommand);
+    connect(&text, &Text::resetCodeText, this, &MainWindow::setCodeDisplayText);
+    connect(&text, &Text::sendClear, this, &MainWindow::execClear);
+    connect(&text, &Text::sendHelp, this, &MainWindow::execHelp);
+    connect(&text, &Text::sendList, this, &MainWindow::execList);
+    connect(&text, &Text::sendLoad, this, &MainWindow::execLoad);
+    connect(&text, &Text::sendQuit, this, &MainWindow::execQuit);
+    connect(&text, &Text::sendRun, this, &MainWindow::execRun);
+
 }
 
 MainWindow::~MainWindow()
@@ -23,13 +31,12 @@ void MainWindow::cmdLineEdit_editingFinished()
 {
     QString cmd = ui->cmdLineEdit->text();
     ui->cmdLineEdit->setText("");
-
-    ui->CodeDisplay->append(cmd);
+    emit sendCommand(cmd);
 }
 
 void MainWindow::btnClearCode_clicked()
 {
-    qDebug() << ui->btnClearCode->text();
+    Text::clear();
     ui->CodeDisplay->clear();
     ui->treeDisplay->clear();
     ui->textBrowser->clear();
@@ -37,16 +44,87 @@ void MainWindow::btnClearCode_clicked()
 
 void MainWindow::btnRunCode_clicked()
 {
-    qDebug() << ui->btnRunCode->text();
+    ui->textBrowser->clear();
+    text.executeProgram();
 
 }
 
 void MainWindow::btnLoadCode_clicked()
 {
-//    qDebug() << ui->btnLoadCode->text();
+//    QString filePath = QFileDialog::getOpenFileName();
+    QString filePath = "../basicSrc/case2";
+    parseFile(filePath);
 }
 
 void MainWindow::cmdLineEdit_return()
 {
     qDebug() << ui->cmdLineEdit->text();
 }
+
+void MainWindow::textBrowser_print(int value)
+{
+    auto stdPrintText = std::to_string(value);
+    QString printText = QString(stdPrintText.c_str());
+    ui->textBrowser->append(printText);
+    ui->textBrowser->show();
+}
+
+void MainWindow::parseFile(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "cannot open file " + filePath;
+    }
+    QTextStream in(&file);
+    Text::clear();
+    auto allText = in.readAll();
+    text.input(allText);
+    auto &lines = Text::lines;
+    for (auto &line: lines) {
+        connect(&line, &Statement::textPrint, this, &MainWindow::textBrowser_print);
+        connect(this, &MainWindow::sendInputValue, &line, &Statement::getInput);
+    }
+    ui->CodeDisplay->clear();
+    setCodeDisplayText();
+}
+
+void MainWindow::setCodeDisplayText()
+{
+    ui->CodeDisplay->clear();
+    for (const auto &line: Text::lines)
+        ui->CodeDisplay->append(line.rowLine);
+}
+
+void MainWindow::execQuit()
+{
+    this->close();
+}
+
+void MainWindow::execRun()
+{
+    btnRunCode_clicked();
+}
+
+void MainWindow::execLoad()
+{
+    btnLoadCode_clicked();
+}
+
+void MainWindow::execList()
+{
+
+}
+
+void MainWindow::execClear()
+{
+    btnClearCode_clicked();
+}
+
+void MainWindow::execHelp()
+{
+    qDebug() << "no help";
+}
+
+
+
+

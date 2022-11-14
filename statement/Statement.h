@@ -20,17 +20,20 @@ enum StmtType
 };
 
 
-class Statement
+class Statement : public QObject
 {
+Q_OBJECT
 public:
     Statement() : type(WRONG)
     {};
 
 
-    explicit Statement(QString &line);
+    Statement(QString &line);
 
 
     Statement(const Statement &statement);
+
+    Statement &operator=(const Statement &statement);
 
     QString rowLine;
     QVector<QPair<QString, Token::Kind>> splitLine;
@@ -38,21 +41,28 @@ public:
 
     void parse(QString &line);
 
-    StmtType setType(const QString &strType);
+    bool exec();
 
-    void exec();
+    [[nodiscard]] bool executeInput() const;
 
-    void executeInput();
+    [[nodiscard]] bool executeLet() const;
 
-    void executeLet();
+    bool executeIf();
 
-    void executeIf();
+    bool executePrint();
 
-    void executePrint();
-
-    void executeGoto();
+    [[nodiscard]] bool executeGoto() const;
 
     void parseLet();
+
+signals:
+
+    void textPrint(int value);
+
+public slots:
+
+    void getInput(int value);
+
 };
 
 static Lexer lexer;
@@ -66,5 +76,7 @@ static const QMap<int, int> Priority = QMap<int, int>(
          {(int) Token::Kind::RightParen, 4}});
 
 int calculateExp(QVector<QPair<QString, Token::Kind>> &expr);
+
+StmtType setType(const QString &strType);
 
 int calculateTwoNum(int a, int b, const Token::Kind &op);

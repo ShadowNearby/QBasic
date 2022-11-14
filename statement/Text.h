@@ -9,6 +9,7 @@
 
 class Text : public QObject
 {
+Q_OBJECT
 public:
 
     Text();
@@ -17,26 +18,35 @@ public:
     static QMap<int, Statement> lines;
     static QMap<QString, int> variables;
 
-    void input(std::string &line);
+    void input(std::string &rowText);
+
+    void input(QString &rowText);
+
+    void input(const char *rowText);
+
+    static void clear();
 
     void executeProgram();
+
+public slots:
 
     void executeCommand(QString &command);
 
 signals:
 
-    void executeRun();
+    void sendRun();
 
-    void executeLoad();
+    void sendLoad();
 
-    void executeList();
+    void sendList();
 
-    void executeClear();
+    void sendClear();
 
-    void executeHelp();
+    void sendHelp();
 
-    void executeQuit();
+    void sendQuit();
 
+    void resetCodeText();
 
 };
 

@@ -11,3 +11,5 @@
 #include <iomanip>
 #include <cmath>
 #include <QFile>
+#include <QFileDialog>
+#include <string>

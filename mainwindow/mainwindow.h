@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include "../utility/QUtility.h"
 #include "../parser/Lexer.h"
@@ -17,10 +16,14 @@ class MainWindow : public QMainWindow
 Q_OBJECT
 
 public:
+    Text text;
+
     explicit MainWindow(QWidget *parent = nullptr);
 
+    void parseFile(const QString &filePath);
 
     ~MainWindow() override;
+
 
 private slots:
 
@@ -34,9 +37,31 @@ private slots:
 
     void cmdLineEdit_return();
 
+public slots:
+
+    void textBrowser_print(int value);
+
+    void setCodeDisplayText();
+
+    void execQuit();
+
+    void execRun();
+
+    void execLoad();
+
+    void execList();
+
+    void execClear();
+
+    void execHelp();
+
+signals:
+
+    void sendCommand(QString &command);
+
+    void sendInputValue(int value);
+
 private:
     Ui::MainWindow *ui;
-    QThread *mainThread;
 };
 
-#endif // MAINWINDOW_H
