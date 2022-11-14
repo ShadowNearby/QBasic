@@ -9,8 +9,9 @@
 
 class Text : public QObject
 {
-    Lexer lexer;
 public:
+    static Lexer lexer;
+
     Text();
 
     static QMap<int, Statement> lines;

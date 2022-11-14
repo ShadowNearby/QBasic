@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 project(QBasic)
-
+set(CMAKE_AUTOMOC ON)
+enable_testing(True)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -21,8 +22,26 @@ add_executable(QBasic
         parser/Lexer.cpp parser/Lexer.h
         parser/CommandParser.cpp parser/CommandParser.h
         utility/QUtility.h
-        statement/Statement.cpp statement/Statement.h statement/Text.cpp statement/Text.h)
+        statement/Statement.cpp statement/Statement.h
+        statement/Text.cpp statement/Text.h
+        )
+add_executable(QBasicTest
+        #        main.cpp
+        mainwindow/mainwindow.cpp mainwindow/mainwindow.h mainwindow/mainwindow.ui
+        parser/Lexer.cpp parser/Lexer.h
+        parser/CommandParser.cpp parser/CommandParser.h
+        utility/QUtility.h
+        statement/Statement.cpp statement/Statement.h
+        statement/Text.cpp statement/Text.h
+        Test/Test.cpp Test/Test.h
+        )
 target_link_libraries(QBasic
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Qt5::Test
+        )
+target_link_libraries(QBasicTest
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
@@ -50,7 +69,7 @@ if (WIN32)
                 "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll"
                 "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/platforms/")
     endif ()
-    foreach (QT_LIB Core Gui Widgets)
+    foreach (QT_LIB Core Gui Widgets Test)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy
                 "${QT_INSTALL_PATH}/bin/Qt5${QT_LIB}${DEBUG_SUFFIX}.dll"

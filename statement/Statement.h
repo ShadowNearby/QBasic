@@ -29,17 +29,17 @@ public:
 
     explicit Statement(QString &line);
 
-    static QMap<QString, int> priority;
+    static QMap<int, int> Priority;
 
     Statement(const Statement &statement);
 
     QString rowLine;
-    QVector<QString> splitLine;
+    QVector<QPair<QString, Token::Kind>> splitLine;
     StmtType type;
 
-    void parse();
+    void parse(QString &line);
 
-    int calculateExp(QVector<QString> &);
+    int calculateExp();
 
     void executeInput();
 

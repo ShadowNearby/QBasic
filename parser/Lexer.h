@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <utility>
 
 #include "../utility/QUtility.h"
 
