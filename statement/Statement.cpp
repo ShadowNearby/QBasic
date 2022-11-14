@@ -5,44 +5,9 @@
 #include "Statement.h"
 #include "Text.h"
 
-Lexer Statement::lexer;
-QMap<int, int> Statement::Priority = QMap<int, int>(
-        {{(int) Token::Kind::LeftParen,  0},
-         {(int) Token::Kind::Plus,       1},
-         {(int) Token::Kind::Minus,      1},
-         {(int) Token::Kind::Asterisk,   2},
-         {(int) Token::Kind::Slash,      2},
-         {(int) Token::Kind::Power,      2},
-         {(int) Token::Kind::RightParen, 3}});
-
-//QString type_str;
-//try {
-//type_str = splitLine.at(1).first;
-//} catch (std::exception &e) {
-//qDebug() << e.what();
-//}
-//if (type_str == "LET")
-//type = LET;
-//else if (type_str == "END")
-//type = END;
-//else if (type_str == "INPUT")
-//type = INPUT;
-//else if (type_str == "IF")
-//type = IF;
-//else if (type_str == "GOTO")
-//type = GOTO;
-//else if (type_str == "PRINT")
-//type = PRINT;
-//else if (type_str == "REM")
-//type = REM;
-//else {
-//qDebug() << "error";
-//type = WRONG;
-//}
 void Statement::parse(QString &line)
 {
     this->rowLine = line;
-    type = WRONG;
     auto c_line = line.toStdString();
     lexer.setBeg(c_line.c_str());
     for (auto token = lexer.next();
@@ -52,17 +17,10 @@ void Statement::parse(QString &line)
     }
 }
 
-void Statement::executeInput()
-{
-}
-
-void Statement::executeLet()
-{
-}
-
 Statement::Statement(QString &line)
 {
     parse(line);
+    type = setType(splitLine.at(1).first);
 }
 
 Statement::Statement(const Statement &statement)
@@ -72,9 +30,133 @@ Statement::Statement(const Statement &statement)
     this->splitLine = statement.splitLine;
 }
 
-void Statement::parserLet()
+void Statement::parseLet()
 {
     auto &varsTable = Text::variables;
+}
+
+void Statement::exec()
+{
+    switch (type) {
+        case IF:
+            executeIf();
+            return;
+        case REM:
+            return;
+        case INPUT:
+            executeInput();
+            return;
+        case LET:
+            executeLet();
+            return;
+        case PRINT:
+            executePrint();
+            return;
+        case END:
+            return;
+        case GOTO:
+            executeGoto();
+            return;
+        case WRONG:
+            return;
+    }
+}
+
+void Statement::executeInput()
+{
+    auto varName = splitLine.at(2).first;
+    int value;
+    std::cin >> value;
+    Text::variables[varName] = value;
+}
+
+void Statement::executeIf()
+{
+    QVector<QPair<QString, Token::Kind>> leftExpr, rightExpr;
+    QString strToLine;
+    Token::Kind compareSign;
+    bool isLeft = true;
+    for (int it = 2; it < splitLine.size(); ++it) {
+        auto cur = splitLine[it];
+        if (cur.first == "THEN") {
+            strToLine = splitLine[it + 1].first;
+            break;
+        }
+        if (cur.second == Token::Kind::Equal
+            || cur.second == Token::Kind::LessThan
+            || cur.second == Token::Kind::GreaterThan) {
+            compareSign = cur.second;
+            isLeft = false;
+            continue;
+        }
+        if (isLeft)
+            leftExpr.push_back(cur);
+        else
+            rightExpr.push_back(cur);
+    }
+    int leftVal = calculateExp(leftExpr);
+    int rightVal = calculateExp(rightExpr);
+    int compareRes = calculateTwoNum(leftVal, rightVal, compareSign);
+    if (compareRes) {
+        int toLine = strToLine.toInt();
+        Text::currentLineNum = toLine;
+    } else {
+        Text::currentLineNum = (Text::lines.find(Text::currentLineNum) + 1).key();
+    }
+}
+
+void Statement::executePrint()
+{
+    QVector<QPair<QString, Token::Kind>> expr;
+    for (int it = 2; it < splitLine.size(); ++it)
+        expr.push_back(splitLine[it]);
+    int value = calculateExp(expr);
+    std::cout << value << std::endl;
+}
+
+void Statement::executeGoto()
+{
+    auto &strToLine = splitLine.at(2).first;
+    int toLine = strToLine.toInt();
+    Text::currentLineNum = toLine;
+}
+
+void Statement::executeLet()
+{
+    if (splitLine.at(2).second != Token::Kind::Identifier) {
+        qDebug() << "Can not find var";
+        return;
+    }
+    if (splitLine.at(3).second != Token::Kind::Equal) {
+        qDebug() << "Can not find the equal sign";
+        return;
+    }
+    auto varName = splitLine.at(2);
+    QVector<QPair<QString, Token::Kind>> expr;
+    for (int it = 4; it < splitLine.size(); ++it)
+        expr.push_back(splitLine[it]);
+    int value = calculateExp(expr);
+    Text::variables[varName.first] = value;
+}
+
+StmtType Statement::setType(const QString &strType)
+{
+    if (strType == "GOTO")
+        return GOTO;
+    if (strType == "IF")
+        return IF;
+    if (strType == "LET")
+        return LET;
+    if (strType == "PRINT")
+        return PRINT;
+    if (strType == "END")
+        return END;
+    if (strType == "INPUT")
+        return INPUT;
+    if (strType == "REM")
+        return REM;
+    qDebug() << "Wrong key word";
+    return WRONG;
 }
 
 int calculateTwoNum(int a, int b, const Token::Kind &op)
@@ -89,19 +171,24 @@ int calculateTwoNum(int a, int b, const Token::Kind &op)
         return a / b;
     if (op == Token::Kind::Power)
         return (int) std::pow(a, b);
+    if (op == Token::Kind::LessThan)
+        return a < b;
+    if (op == Token::Kind::GreaterThan)
+        return a > b;
+    if (op == Token::Kind::Equal)
+        return a == b;
     qDebug() << "operator error";
     return 0;
 }
 
-// QVector<QPair<QString, Token::Kind>> &expr
-int Statement::calculateExp()
+int calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
 {
-    auto calSplitLine = splitLine;
+    auto calSplitLine = expr;
     if (calSplitLine.first().second == Token::Kind::Minus)
         calSplitLine.push_front({"0", Token::Kind::Number});
     QVector<int> minusPos;
-    for (auto it = 0; it < splitLine.size(); ++it) {
-        if (splitLine[it].second == Token::Kind::LeftParen && splitLine[it + 1].second == Token::Kind::Minus) {
+    for (auto it = 0; it < expr.size(); ++it) {
+        if (expr[it].second == Token::Kind::LeftParen && expr[it + 1].second == Token::Kind::Minus) {
             minusPos.push_back(it + 1);
         }
     }
@@ -135,8 +222,7 @@ int Statement::calculateExp()
         if (kind == Token::Kind::Plus
             || kind == Token::Kind::Minus
             || kind == Token::Kind::Asterisk
-            || kind == Token::Kind::Slash
-            || kind == Token::Kind::Power) {
+            || kind == Token::Kind::Slash) {
             if (BStack.empty()) {
                 BStack.push_back(item);
                 continue;
@@ -145,6 +231,29 @@ int Statement::calculateExp()
             int currentPri = Priority[(int) kind];
             int topPri = Priority[(int) topOp.second];
             if (topPri >= currentPri) {
+                while (true) {
+                    BStack.pop_back();
+                    AStack.push_back(topOp);
+                    if (BStack.empty())
+                        break;
+                    topOp = BStack.back();
+                    topPri = Priority[(int) topOp.second];
+                    if (topPri < currentPri)
+                        break;
+                }
+            }
+            BStack.push_back(item);
+            continue;
+        }
+        if (kind == Token::Kind::Power) {
+            if (BStack.empty()) {
+                BStack.push_back(item);
+                continue;
+            }
+            auto topOp = BStack.back();
+            int currentPri = Priority[(int) kind];
+            int topPri = Priority[(int) topOp.second];
+            if (topPri > currentPri) {
                 while (true) {
                     BStack.pop_back();
                     AStack.push_back(topOp);

@@ -1,0 +1,5 @@
+10 LET a = 2
+20 IF a = 2 THEN 40
+30 PRINT a
+40 PRINT a * 8
+50 END

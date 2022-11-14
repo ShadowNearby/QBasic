@@ -10,14 +10,16 @@
 class Text : public QObject
 {
 public:
-    static Lexer lexer;
 
     Text();
 
+    static int currentLineNum;
     static QMap<int, Statement> lines;
     static QMap<QString, int> variables;
 
     void input(std::string &line);
+
+    void executeProgram();
 
     void executeCommand(QString &command);
 
