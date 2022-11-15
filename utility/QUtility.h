@@ -14,3 +14,4 @@
 #include <QFileDialog>
 #include <string>
 #include <QThread>
+#include <QException>

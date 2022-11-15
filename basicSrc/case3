@@ -1,12 +1,5 @@
 100 REM Program to print the Fibonacci sequence.
 110 LET max = 1000000
-120 INPUT n1
-130 LET n2 = 1
-140 IF n1 > max THEN 190
-145 PRINT n1
-150 LET n3 = n1 + n2
-160 LET n1 = n2
-170 LET n2 = n3
-180 GOTO 140
-190 END
-
+111 INPUT n
+112 PRINT n
+120 PRINT max

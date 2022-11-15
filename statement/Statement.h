@@ -44,15 +44,29 @@ public:
 
     [[nodiscard]] bool executeInput();
 
-    [[nodiscard]] bool executeLet() const;
+    [[nodiscard]] bool executeLet();
 
     bool executeIf();
 
     bool executePrint();
 
-    [[nodiscard]] bool executeGoto() const;
+    [[nodiscard]] bool executeGoto();
 
-    void parseLet();
+    void parseLet(QVector<QString> &);
+
+    void parseGoto(QVector<QString> &);
+
+    void parseIf(QVector<QString> &);
+
+    void parsePrint(QVector<QString> &);
+
+    int calculateExp(QVector<QPair<QString, Token::Kind>> &expr);
+
+    StmtType setType(const QString &strType);
+
+    int calculateTwoNum(int a, int b, const Token::Kind &op);
+
+    void exprToTree(QString &res, QVector<QPair<QString, Token::Kind>> &expr);
 
 signals:
 
@@ -60,9 +74,11 @@ signals:
 
     void prepareInput();
 
+    void sendError(QString error);
+
 public slots:
 
-    void getInput(int value) const;
+    void getInput(int value);
 
 };
 
@@ -76,8 +92,4 @@ static const QMap<int, int> Priority = QMap<int, int>(
          {(int) Token::Kind::Power,      3},
          {(int) Token::Kind::RightParen, 4}});
 
-int calculateExp(QVector<QPair<QString, Token::Kind>> &expr);
 
-StmtType setType(const QString &strType);
-
-int calculateTwoNum(int a, int b, const Token::Kind &op);

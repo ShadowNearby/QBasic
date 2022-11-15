@@ -18,6 +18,7 @@ public:
     static int currentLineNum;
     static QMap<int, Statement> lines;
     static QMap<QString, int> variables;
+    static bool error;
 
     void input(std::string &rowText);
 
@@ -31,27 +32,11 @@ public:
 
     void run() override;
 
-public slots:
-
-    void executeCommand(QString &command);
 
 signals:
 
-    void sendRun();
 
-    void sendLoad();
-
-    void sendList();
-
-    void sendClear();
-
-    void sendHelp();
-
-    void sendQuit();
-
-    void resetCodeText();
-
-    void sendInputValue(int value);
+    void sendError(QString &error);
 };
 
 void test();

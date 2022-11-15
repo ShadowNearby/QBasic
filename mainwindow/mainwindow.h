@@ -24,6 +24,7 @@ public:
 
     ~MainWindow() override;
 
+    void execCommand(QString &command);
 
 private slots:
 
@@ -45,6 +46,8 @@ public slots:
 
     void cmdLineEdit_input();
 
+    void errorInfo_print(QString error);
+
     void execQuit();
 
     void execRun();
@@ -59,8 +62,7 @@ public slots:
 
 signals:
 
-    void sendCommand(QString &command);
-
+    void sendInputValue(int value);
 
 private:
     Ui::MainWindow *ui;

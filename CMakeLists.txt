@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_PREFIX_PATH "D:/QT/5.15.2/mingw81_64/lib/cmake")
-
+add_definitions(-Wall -O2)
 find_package(Qt5 COMPONENTS
         Core
         Gui
@@ -45,7 +45,6 @@ target_link_libraries(QBasicTest
         Qt5::Widgets
         Qt5::Test
         )
-
 if (WIN32)
     set(DEBUG_SUFFIX)
     if (MSVC AND CMAKE_BUILD_TYPE MATCHES "Debug")
