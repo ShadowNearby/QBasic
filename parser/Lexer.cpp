@@ -184,6 +184,8 @@ Token Lexer::next() noexcept
         case '8':
         case '9':
             return number();
+        case '?':
+            return atom(Token::Kind::Question);
         case '(':
             return atom(Token::Kind::LeftParen);
         case ')':
@@ -291,7 +293,7 @@ std::ostream &operator<<(std::ostream &os, const Token::Kind &kind)
             "Equal", "Plus", "Minus", "Asterisk", "Slash",
             "Hash", "Dot", "Comma", "Colon", "Semicolon",
             "SingleQuote", "DoubleQuote", "Comment", "Pipe", "End",
-            "Power", "Unexpected",
+            "Power", "Question", "Unexpected",
     };
     return os << names[static_cast<int>(kind)];
 }

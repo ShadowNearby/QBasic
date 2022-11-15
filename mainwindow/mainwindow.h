@@ -16,7 +16,7 @@ class MainWindow : public QMainWindow
 Q_OBJECT
 
 public:
-    Text text;
+    Text *text;
 
     explicit MainWindow(QWidget *parent = nullptr);
 
@@ -43,6 +43,8 @@ public slots:
 
     void setCodeDisplayText();
 
+    void cmdLineEdit_input();
+
     void execQuit();
 
     void execRun();
@@ -59,7 +61,6 @@ signals:
 
     void sendCommand(QString &command);
 
-    void sendInputValue(int value);
 
 private:
     Ui::MainWindow *ui;

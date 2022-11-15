@@ -19,7 +19,6 @@ enum StmtType
     WRONG
 };
 
-
 class Statement : public QObject
 {
 Q_OBJECT
@@ -43,7 +42,7 @@ public:
 
     bool exec();
 
-    [[nodiscard]] bool executeInput() const;
+    [[nodiscard]] bool executeInput();
 
     [[nodiscard]] bool executeLet() const;
 
@@ -59,9 +58,11 @@ signals:
 
     void textPrint(int value);
 
+    void prepareInput();
+
 public slots:
 
-    void getInput(int value);
+    void getInput(int value) const;
 
 };
 

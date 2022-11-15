@@ -20,7 +20,6 @@ add_executable(QBasic
         main.cpp
         mainwindow/mainwindow.cpp mainwindow/mainwindow.h mainwindow/mainwindow.ui
         parser/Lexer.cpp parser/Lexer.h
-        parser/CommandParser.cpp parser/CommandParser.h
         utility/QUtility.h
         statement/Statement.cpp statement/Statement.h
         statement/Text.cpp statement/Text.h
@@ -29,7 +28,6 @@ add_executable(QBasicTest
         #        main.cpp
         mainwindow/mainwindow.cpp mainwindow/mainwindow.h mainwindow/mainwindow.ui
         parser/Lexer.cpp parser/Lexer.h
-        parser/CommandParser.cpp parser/CommandParser.h
         utility/QUtility.h
         statement/Statement.cpp statement/Statement.h
         statement/Text.cpp statement/Text.h

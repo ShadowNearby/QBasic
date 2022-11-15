@@ -13,3 +13,4 @@
 #include <QFile>
 #include <QFileDialog>
 #include <string>
+#include <QThread>

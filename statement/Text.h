@@ -7,13 +7,14 @@
 #include "Statement.h"
 
 
-class Text : public QObject
+class Text : public QThread
 {
 Q_OBJECT
 public:
 
-    Text();
+    Text(QObject *parent = nullptr);
 
+    static bool waitForInput;
     static int currentLineNum;
     static QMap<int, Statement> lines;
     static QMap<QString, int> variables;
@@ -27,6 +28,8 @@ public:
     static void clear();
 
     void executeProgram();
+
+    void run() override;
 
 public slots:
 
@@ -48,6 +51,7 @@ signals:
 
     void resetCodeText();
 
+    void sendInputValue(int value);
 };
 
 void test();

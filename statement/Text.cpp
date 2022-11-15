@@ -7,6 +7,7 @@
 QMap<int, Statement> Text::lines = QMap<int, Statement>();
 QMap<QString, int> Text::variables = QMap<QString, int>();
 int Text::currentLineNum = 0;
+bool Text::waitForInput = false;
 
 void Text::input(std::string &rowText)
 {
@@ -37,7 +38,6 @@ void Text::input(QString &rowText)
     }
 }
 
-
 void Text::executeCommand(QString &command)
 {
     auto stdCommand = command.toStdString();
@@ -50,6 +50,12 @@ void Text::executeCommand(QString &command)
     }
     if (splitCommand.empty())
         return;
+    if (waitForInput && splitCommand.first().first == "?") {
+        int value = splitCommand.last().first.toInt();
+        emit sendInputValue(value);
+        return;
+    }
+
     if (splitCommand.first().second == Token::Kind::Number) {
         if (splitCommand.size() == 1) {
             int removeLineNum = command.toInt();
@@ -62,22 +68,29 @@ void Text::executeCommand(QString &command)
         emit resetCodeText();
         return;
     }
-    if (command == "RUN") { emit sendRun(); }
-    else if (command == "LOAD") { emit sendLoad(); }
-    else if (command == "LIST") { emit sendList(); }
-    else if (command == "CLEAR") { emit sendClear(); }
-    else if (command == "HELP") { emit sendHelp(); }
-    else if (command == "QUIT") { emit sendQuit(); }
-    else {
+    if (command == "RUN") {
+        emit sendRun();
+    } else if (command == "LOAD") {
+        emit sendLoad();
+    } else if (command == "LIST") {
+        emit sendList();
+    } else if (command == "CLEAR") {
+        emit sendClear();
+    } else if (command == "HELP") {
+        emit sendHelp();
+    } else if (command == "QUIT") {
+        emit sendQuit();
+    } else {
         qDebug() << "ERROR!\tWRONG COMMAND!";
     }
 }
-
 
 void Text::executeProgram()
 {
     currentLineNum = lines.firstKey();
     for (;;) {
+        if (waitForInput)
+            continue;
         auto currentLineIt = lines.find(currentLineNum);
         auto nextLine = !currentLineIt->exec();
         if (currentLineIt == lines.end() - 1 && nextLine)
@@ -94,13 +107,18 @@ void Text::clear()
     variables.clear();
 }
 
+Text::Text(QObject *parent)
+{
+}
 
-Text::Text()
-= default;
+void Text::run()
+{
+    executeProgram();
+}
 
 void test()
 {
-    QString filePath = "../basicSrc/case2";
+    QString filePath = "../basicSrc/case1";
     QFile file(filePath);
     file.open(QIODevice::ReadOnly);
     QTextStream in(&file);

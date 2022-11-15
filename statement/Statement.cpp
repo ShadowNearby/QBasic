@@ -57,12 +57,10 @@ bool Statement::exec()
     }
 }
 
-bool Statement::executeInput() const
+bool Statement::executeInput()
 {
-    auto varName = splitLine.at(2).first;
-    int value;
-    std::cin >> value;
-    Text::variables[varName] = value;
+    Text::waitForInput = true;
+    emit prepareInput();
     return false;
 }
 
@@ -109,6 +107,7 @@ bool Statement::executePrint()
         expr.push_back(splitLine[it]);
     int value = calculateExp(expr);
     emit textPrint(value);
+    QThread::usleep(1);
     return false;
 }
 
@@ -159,10 +158,11 @@ StmtType setType(const QString &strType)
     return WRONG;
 }
 
-void Statement::getInput(int value)
+void Statement::getInput(int value) const
 {
     auto varName = splitLine.at(2).first;
     Text::variables[varName] = value;
+    Text::waitForInput = false;
 }
 
 Statement &Statement::operator=(const Statement &statement)

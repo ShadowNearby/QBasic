@@ -38,6 +38,7 @@ public:
         Pipe,
         End,
         Power,
+        Question,
         Unexpected,
 
     };

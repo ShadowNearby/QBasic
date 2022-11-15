@@ -6,19 +6,20 @@ MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    text = new Text(this);
     connect(ui->cmdLineEdit, &QLineEdit::editingFinished, this, &MainWindow::cmdLineEdit_editingFinished);
     connect(ui->btnClearCode, &QPushButton::clicked, this, &MainWindow::btnClearCode_clicked);
     connect(ui->btnRunCode, &QPushButton::clicked, this, &MainWindow::btnRunCode_clicked);
     connect(ui->btnLoadCode, &QPushButton::clicked, this, &MainWindow::btnLoadCode_clicked);
     connect(ui->cmdLineEdit, &QLineEdit::returnPressed, this, &MainWindow::cmdLineEdit_return);
-    connect(this, &MainWindow::sendCommand, &text, &Text::executeCommand);
-    connect(&text, &Text::resetCodeText, this, &MainWindow::setCodeDisplayText);
-    connect(&text, &Text::sendClear, this, &MainWindow::execClear);
-    connect(&text, &Text::sendHelp, this, &MainWindow::execHelp);
-    connect(&text, &Text::sendList, this, &MainWindow::execList);
-    connect(&text, &Text::sendLoad, this, &MainWindow::execLoad);
-    connect(&text, &Text::sendQuit, this, &MainWindow::execQuit);
-    connect(&text, &Text::sendRun, this, &MainWindow::execRun);
+    connect(this, &MainWindow::sendCommand, text, &Text::executeCommand);
+    connect(text, &Text::resetCodeText, this, &MainWindow::setCodeDisplayText);
+    connect(text, &Text::sendClear, this, &MainWindow::execClear);
+    connect(text, &Text::sendHelp, this, &MainWindow::execHelp);
+    connect(text, &Text::sendList, this, &MainWindow::execList);
+    connect(text, &Text::sendLoad, this, &MainWindow::execLoad);
+    connect(text, &Text::sendQuit, this, &MainWindow::execQuit);
+    connect(text, &Text::sendRun, this, &MainWindow::execRun);
 
 }
 
@@ -45,14 +46,13 @@ void MainWindow::btnClearCode_clicked()
 void MainWindow::btnRunCode_clicked()
 {
     ui->textBrowser->clear();
-    text.executeProgram();
-
+    text->start();
 }
 
 void MainWindow::btnLoadCode_clicked()
 {
 //    QString filePath = QFileDialog::getOpenFileName();
-    QString filePath = "../basicSrc/case2";
+    QString filePath = "../basicSrc/case3";
     parseFile(filePath);
 }
 
@@ -66,7 +66,6 @@ void MainWindow::textBrowser_print(int value)
     auto stdPrintText = std::to_string(value);
     QString printText = QString(stdPrintText.c_str());
     ui->textBrowser->append(printText);
-    ui->textBrowser->show();
 }
 
 void MainWindow::parseFile(const QString &filePath)
@@ -78,11 +77,15 @@ void MainWindow::parseFile(const QString &filePath)
     QTextStream in(&file);
     Text::clear();
     auto allText = in.readAll();
-    text.input(allText);
+    text->input(allText);
     auto &lines = Text::lines;
     for (auto &line: lines) {
-        connect(&line, &Statement::textPrint, this, &MainWindow::textBrowser_print);
-        connect(this, &MainWindow::sendInputValue, &line, &Statement::getInput);
+        if (line.type == PRINT)
+            connect(&line, &Statement::textPrint, this, &MainWindow::textBrowser_print);
+        else if (line.type == INPUT) {
+            connect(text, &Text::sendInputValue, &line, &Statement::getInput);
+            connect(&line, &Statement::prepareInput, this, &MainWindow::cmdLineEdit_input);
+        }
     }
     ui->CodeDisplay->clear();
     setCodeDisplayText();
@@ -123,6 +126,11 @@ void MainWindow::execClear()
 void MainWindow::execHelp()
 {
     qDebug() << "no help";
+}
+
+void MainWindow::cmdLineEdit_input()
+{
+    ui->cmdLineEdit->setText("? ");
 }
 
 
