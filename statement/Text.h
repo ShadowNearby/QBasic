@@ -34,8 +34,7 @@ public:
 
 
 signals:
-
-
+    
     void sendError(QString &error);
 };
 

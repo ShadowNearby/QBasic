@@ -65,7 +65,8 @@ void MainWindow::parseFile(const QString &filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "cannot open file " + filePath;
+        QString errorMsg = "cannot open file " + filePath;
+        ui->textBrowser->append(errorMsg);
     }
     QTextStream in(&file);
     Text::clear();
@@ -73,16 +74,61 @@ void MainWindow::parseFile(const QString &filePath)
     text->input(allText);
     auto &lines = Text::lines;
     for (auto &line: lines) {
-        if (line.type == PRINT)
-            connect(&line, &Statement::textPrint, this, &MainWindow::textBrowser_print);
-        else if (line.type == INPUT) {
-            connect(&line, &Statement::prepareInput, this, &MainWindow::cmdLineEdit_input);
-            connect(this, &MainWindow::sendInputValue, &line, &Statement::getInput);
-        }
-        connect(&line, &Statement::sendError, this, &MainWindow::errorInfo_print);
+        connectLine(line);
     }
     ui->CodeDisplay->clear();
     setCodeDisplayText();
+    setTreeDisplayText();
+}
+
+
+void MainWindow::execCommand(QString &command)
+{
+    auto stdCommand = command.toStdString();
+    lexer.setBeg(stdCommand.c_str());
+    QVector<QPair<QString, Token::Kind>> splitCommand;
+    for (auto token = lexer.next();
+         !token.is_one_of(Token::Kind::End, Token::Kind::Unexpected);
+         token = lexer.next()) {
+        splitCommand.push_back(QPair(token.lexeme().c_str(), token.kind()));
+    }
+    if (splitCommand.empty())
+        return;
+    if (Text::waitForInput && splitCommand.first().first == "?") {
+        int value = splitCommand.last().first.toInt();
+        emit sendInputValue(value);
+        return;
+    }
+    if (splitCommand.first().second == Token::Kind::Number) {
+        if (splitCommand.size() == 1) {
+            int removeLineNum = command.toInt();
+            Text::lines.remove(removeLineNum);
+        } else {
+            int insertLineNum = splitCommand.first().first.toInt();
+            Statement line(command);
+            connectLine(line);
+            Text::lines[insertLineNum] = Statement(command);
+        }
+        setCodeDisplayText();
+        setTreeDisplayText();
+        return;
+    }
+    if (command == "RUN") {
+        execRun();
+    } else if (command == "LOAD") {
+        execLoad();
+    } else if (command == "LIST") {
+        execList();
+    } else if (command == "CLEAR") {
+        execClear();
+    } else if (command == "HELP") {
+        execHelp();
+    } else if (command == "QUIT") {
+        execQuit();
+    } else {
+        auto errorMsg = QString("Error command!") + command;
+        errorInfo_print(errorMsg);
+    }
 }
 
 void MainWindow::setCodeDisplayText()
@@ -90,6 +136,13 @@ void MainWindow::setCodeDisplayText()
     ui->CodeDisplay->clear();
     for (const auto &line: Text::lines)
         ui->CodeDisplay->append(line.rowLine);
+}
+
+void MainWindow::setTreeDisplayText()
+{
+    ui->treeDisplay->clear();
+    for (auto &line: Text::lines)
+        ui->treeDisplay->append(line.tree);
 }
 
 void MainWindow::execQuit()
@@ -119,7 +172,8 @@ void MainWindow::execClear()
 
 void MainWindow::execHelp()
 {
-    qDebug() << "no help";
+    QString help = "Hello world!";
+    ui->textBrowser->append(help);
 }
 
 void MainWindow::cmdLineEdit_input()
@@ -132,53 +186,14 @@ void MainWindow::errorInfo_print(QString error)
     ui->textBrowser->append(error);
 }
 
-void MainWindow::execCommand(QString &command)
+void MainWindow::connectLine(Statement &line)
 {
-    auto stdCommand = command.toStdString();
-    lexer.setBeg(stdCommand.c_str());
-    QVector<QPair<QString, Token::Kind>> splitCommand;
-    for (auto token = lexer.next();
-         !token.is_one_of(Token::Kind::End, Token::Kind::Unexpected);
-         token = lexer.next()) {
-        splitCommand.push_back(QPair(token.lexeme().c_str(), token.kind()));
+    if (line.type == PRINT)
+        connect(&line, &Statement::textPrint, this, &MainWindow::textBrowser_print);
+    else if (line.type == INPUT) {
+        connect(&line, &Statement::prepareInput, this, &MainWindow::cmdLineEdit_input);
+        connect(this, &MainWindow::sendInputValue, &line, &Statement::getInput);
     }
-    if (splitCommand.empty())
-        return;
-    if (Text::waitForInput && splitCommand.first().first == "?") {
-        int value = splitCommand.last().first.toInt();
-        emit sendInputValue(value);
-        return;
-    }
-    if (splitCommand.first().second == Token::Kind::Number) {
-        if (splitCommand.size() == 1) {
-            int removeLineNum = command.toInt();
-            Text::lines.remove(removeLineNum);
-            setCodeDisplayText();
-            return;
-        }
-        int insertLineNum = splitCommand.first().first.toInt();
-        Text::lines[insertLineNum] = Statement(command);
-        setCodeDisplayText();
-        return;
-    }
-    if (command == "RUN") {
-        execRun();
-    } else if (command == "LOAD") {
-        execLoad();
-    } else if (command == "LIST") {
-        execList();
-    } else if (command == "CLEAR") {
-        execClear();
-    } else if (command == "HELP") {
-        execHelp();
-    } else if (command == "QUIT") {
-        execQuit();
-    } else {
-        auto errorMsg = QString("Error command!") + command;
-        errorInfo_print(errorMsg);
-    }
+    connect(&line, &Statement::sendError, this, &MainWindow::errorInfo_print);
+
 }
-
-
-
-

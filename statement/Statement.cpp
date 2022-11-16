@@ -15,12 +15,29 @@ void Statement::parse(QString &line)
          token = lexer.next()) {
         splitLine.push_back(QPair(token.lexeme().c_str(), token.kind()));
     }
+    if (splitLine.size() < 2) {
+        QString errorMsg = "error: syntax error in\n" + line;
+        emit sendError(errorMsg);
+        Text::error = true;
+    }
+    type = setType(splitLine.at(1).first);
 }
 
 Statement::Statement(QString &line)
 {
     parse(line);
-    type = setType(splitLine.at(1).first);
+    if (type == WRONG)
+        return;
+    lineToTree();
+}
+
+Statement &Statement::operator=(const Statement &statement)
+{
+    this->type = statement.type;
+    this->rowLine = statement.rowLine;
+    this->splitLine = statement.splitLine;
+    this->tree = statement.tree;
+    return *this;
 }
 
 Statement::Statement(const Statement &statement)
@@ -28,53 +45,57 @@ Statement::Statement(const Statement &statement)
     this->type = statement.type;
     this->rowLine = statement.rowLine;
     this->splitLine = statement.splitLine;
+    this->tree = statement.tree;
 }
 
 
 bool Statement::exec()
 {
+
     switch (type) {
         case IF:
             return executeIf();
         case REM:
             return false;
         case INPUT:
-            return executeInput();
+            active = true;
+            executeInput();
+            return false;
         case LET:
-            return executeLet();
+            executeLet();
+            return false;
         case PRINT:
-            return executePrint();
+            executePrint();
+            return false;
         case END:
             return false;
         case GOTO:
-            return executeGoto();
+            executeGoto();
+            return true;
         default:
+            QString errorMsg = "error: statement type error in\n" + rowLine;
+            emit sendError(errorMsg);
+            Text::error = true;
             return false;
     }
 }
 
-bool Statement::executeInput()
+void Statement::executeInput()
 {
     Text::waitForInput = true;
     if (splitLine.size() != 3) {
         QString errorMsg = "error: expected syntax 'n INPUT variable' in\n" + rowLine;
         emit sendError(errorMsg);
         Text::error = true;
-        return false;
+        return;
     }
     emit prepareInput();
-    return false;
 }
 
 bool Statement::executeIf()
 {
-    if (splitLine.size() <= 6) {
-        QString errorMsg =
-                "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
-        emit sendError(errorMsg);
-        Text::error = true;
-        return true;
-    }
+    if (!checkIf())
+        return false;
     QVector<QPair<QString, Token::Kind>> leftExpr, rightExpr;
     QString strToLine;
     Token::Kind compareSign;
@@ -129,107 +150,212 @@ bool Statement::executeIf()
     return false;
 }
 
-bool Statement::executePrint()
+void Statement::executePrint()
 {
-    if (splitLine.size() <= 2) {
-        QString errorMsg = "error: expected syntax 'n PRINT expression' in\n" + rowLine;
-        emit sendError(errorMsg);
-        Text::error = true;
-        return true;
-    }
+    if (!checkPrint())
+        return;
     QVector<QPair<QString, Token::Kind>> expr;
     for (int it = 2; it < splitLine.size(); ++it)
         expr.push_back(splitLine[it]);
     int value = calculateExp(expr);
     emit textPrint(value);
     QThread::usleep(1);
-    return false;
 }
 
-bool Statement::executeGoto()
+void Statement::executeGoto()
 {
-    if (splitLine.size() != 3) {
-        QString errorMsg = "error: expected syntax 'n1 GOTO n2' in\n" + rowLine;
-        emit sendError(errorMsg);
-        Text::error = true;
-        return true;
-    }
+    if (!checkGoto())
+        return;
     auto &strToLine = splitLine.at(2).first;
     int toLine = strToLine.toInt();
     Text::currentLineNum = toLine;
-    return true;
+
 }
 
-bool Statement::executeLet()
+void Statement::executeLet()
 {
 
-    if (splitLine.size() <= 4) {
-        QString errorMsg = "error: expected syntax 'n LET variable = expression' in\n" + rowLine;
-        emit sendError(errorMsg);
-        Text::error = true;
-        return false;
-    }
-    if (splitLine.at(3).second != Token::Kind::Equal) {
-        QString errorMsg = "error: expected '=' token in\n" + rowLine;
-        emit sendError(errorMsg);
-        Text::error = true;
-        return false;
-    }
-    if (splitLine.at(2).second != Token::Kind::Identifier) {
-        QString errorMsg = "error: expected primary-expression before '=' token in \n" + rowLine;
-        emit sendError(errorMsg);
-        Text::error = true;
-        return false;
-    }
+    if (!checkLet())
+        return;
     auto varName = splitLine.at(2);
     QVector<QPair<QString, Token::Kind>> expr;
     for (int it = 4; it < splitLine.size(); ++it)
         expr.push_back(splitLine[it]);
     int value = this->calculateExp(expr);
     Text::variables[varName.first] = value;
-    return false;
 }
 
 
 void Statement::getInput(int value)
 {
+    if (!active)
+        return;
     auto varName = splitLine.at(2).first;
     Text::variables[varName] = value;
     Text::waitForInput = false;
+    active = false;
 }
 
-Statement &Statement::operator=(const Statement &statement)
+
+bool Statement::parseLet(QVector<QString> &exprTree)
 {
-    this->type = statement.type;
-    this->rowLine = statement.rowLine;
-    this->splitLine = statement.splitLine;
-    return *this;
+    if (!checkLet())
+        return false;
+    exprTree.push_back(splitLine.first().first + " LET=");
+    exprTree.push_back("    " + splitLine.at(2).first);
+    QVector<QPair<QString, Token::Kind>> resTree;
+    for (int i = 4; i < splitLine.size(); ++i)
+        resTree.push_back(splitLine[i]);
+    QVector<QString> tempTree;
+    exprToTree(tempTree, resTree);
+    for (const auto &item: tempTree)
+        exprTree.push_back(item);
+    return true;
 }
 
-void Statement::parseLet(QVector<QString> &exprTree)
+bool Statement::parseGoto(QVector<QString> &exprTree)
 {
-    QString res = "LET\n";
+    if (!checkGoto())
+        return false;
+    exprTree.push_back(splitLine.first().first + " GOTO");
+    exprTree.push_back("    " + rowLine.split(" GOTO ").last());
+    return true;
 }
 
-void Statement::parseGoto(QVector<QString> &exprTree)
+bool Statement::parseIf(QVector<QString> &exprTree)
 {
-    exprTree.push_back("GOTO\n");
-    exprTree.push_back(splitLine.at(2).first);
+    if (!checkIf())
+        return false;
+    exprTree.push_back(splitLine.first().first + " IF THEN");
+    QVector<QPair<QString, Token::Kind>> leftExpr, rightExpr;
+    QString strToLine;
+    QString compareSign;
+    bool isLeft = true;
+    for (int it = 2; it < splitLine.size(); ++it) {
+        auto cur = splitLine[it];
+        if (cur.first == "THEN") {
+            if (it + 2 != splitLine.size()) {
+                QString errorMsg =
+                        "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
+                emit sendError(errorMsg);
+                Text::error = true;
+                return false;
+            }
+            strToLine = splitLine[it + 1].first;
+            break;
+        }
+        if (cur.second == Token::Kind::Equal
+            || cur.second == Token::Kind::LessThan
+            || cur.second == Token::Kind::GreaterThan) {
+            compareSign = cur.first;
+            isLeft = false;
+            continue;
+        }
+        if (isLeft)
+            leftExpr.push_back(cur);
+        else
+            rightExpr.push_back(cur);
+    }
+    QVector<QString> leftTree, rightTree;
+    exprToTree(leftTree, leftExpr);
+    exprToTree(rightTree, rightExpr);
+    for (const auto &item: leftTree)
+        exprTree.push_back(item);
+    exprTree.push_back(compareSign);
+    for (const auto &item: rightTree)
+        exprTree.push_back(item);
+    exprTree.push_back(splitLine.last().first);
+    return true;
 }
 
-void Statement::parseIf(QVector<QString> &exprTree)
+bool Statement::parsePrint(QVector<QString> &exprTree)
 {
-    QString res = "IF\n";
+    if (!checkPrint())
+        return false;
+    exprTree.push_back(splitLine.first().first + " PRINT");
+    QVector<QPair<QString, Token::Kind>> resTree;
+    for (int i = 2; i < splitLine.size(); ++i)
+        resTree.push_back(splitLine[i]);
+    QVector<QString> tempTree;
+    exprToTree(tempTree, resTree);
+    for (const auto &item: tempTree)
+        exprTree.push_back(item);
+    return true;
 }
 
-void Statement::parsePrint(QVector<QString> &exprTree)
+bool Statement::parseRem(QVector<QString> &exprTree)
 {
-    QString res = "PRINT\n";
+    if (!checkRem())
+        return false;
+    exprTree.push_back(splitLine.first().first + " REM");
+    auto rem = rowLine.split(" REM ").last();
+    exprTree.push_back("    " + rem);
+    return true;
 }
 
-void Statement::exprToTree(QString &res, QVector<QPair<QString, Token::Kind>> &expr)
+bool Statement::parseEnd(QVector<QString> &exprTree)
 {
+    if (!checkEnd())
+        return false;
+    exprTree.push_back(splitLine.first().first + " END");
+    return true;
+}
 
+bool Statement::parseInput(QVector<QString> &exprTree)
+{
+    if (!checkInput())
+        return false;
+    exprTree.push_back(splitLine.first().first + " INPUT");
+    exprTree.push_back("    " + rowLine.split(" INPUT ").last());
+    return true;
+}
+
+void Statement::exprToTree(QVector<QString> &res, QVector<QPair<QString, Token::Kind>> &expr)
+{
+    QVector<QPair<QString, Token::Kind>> exprStack;
+    expToPreStack(expr, exprStack);
+    QVector<QPair<QString, Token::Kind>> resStack;
+    for (const auto &item: exprStack) {
+        auto &kind = item.second;
+//        auto &content = item.first;
+        if (kind == Token::Kind::Identifier || kind == Token::Kind::Number) {
+            if (resStack.empty() || !isOperator(resStack.back().second))
+                resStack.push_back(item);
+            else
+                resStack.insert(resStack.end() - 1, item);
+        } else if (isOperator(kind)) {
+            if (resStack.empty()) {
+                QString errorMsg = "error: expression error in\n" + rowLine;
+                Text::error = true;
+                emit sendError(errorMsg);
+                return;
+            }
+            auto var1 = resStack.back();
+            resStack.pop_back();
+            if (resStack.empty()) {
+                QString errorMsg = "error: expression error in\n" + rowLine;
+                Text::error = true;
+                emit sendError(errorMsg);
+                return;
+            }
+            auto var2 = resStack.back();
+            resStack.pop_back();
+            res.push_front(var1.first);
+            res.push_front(var2.first);
+//            if (!resStack.empty()) {
+//                resStack.insert(resStack.end() - 1, content);
+//            } else
+            resStack.push_back(item);
+
+        }
+    }
+    res.push_front(resStack.first().first);
+    QString posOffset = "    ";
+    for (int i = 0; i < res.size(); ++i) {
+        if (i % 2 != 0)
+            posOffset += ' ';
+        res[i] = posOffset + res[i];
+    }
 }
 
 int Statement::calculateTwoNum(int a, int b, const Token::Kind &op)
@@ -257,13 +383,10 @@ int Statement::calculateTwoNum(int a, int b, const Token::Kind &op)
             Text::error = true;
             return -1;
     }
-
-
 }
 
-int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
+void Statement::expToPreStack(QVector<QPair<QString, Token::Kind>> &expr, QVector<QPair<QString, Token::Kind>> &res)
 {
-
     auto calSplitLine = expr;
     if (calSplitLine.first().second == Token::Kind::Minus)
         calSplitLine.push_front({"0", Token::Kind::Number});
@@ -276,13 +399,11 @@ int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
     for (int i = 0; i < minusPos.size(); ++i) {
         calSplitLine.insert(i + minusPos[i], {"0", Token::Kind::Number});
     }
-    QVector<QPair<QString, Token::Kind>> AStack;
     QVector<QPair<QString, Token::Kind>> BStack;
-    auto &variables = Text::variables;
     for (const auto &item: calSplitLine) {
         auto &kind = item.second;
         if (kind == Token::Kind::Number || kind == Token::Kind::Identifier) {
-            AStack.push_back(item);
+            res.push_back(item);
             continue;
         }
         if (kind == Token::Kind::LeftParen) {
@@ -295,7 +416,7 @@ int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
                 BStack.pop_back();
                 if (topOp.second == Token::Kind::LeftParen)
                     break;
-                AStack.push_back(topOp);
+                res.push_back(topOp);
             }
             continue;
         }
@@ -313,7 +434,7 @@ int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
             if (topPri >= currentPri) {
                 while (true) {
                     BStack.pop_back();
-                    AStack.push_back(topOp);
+                    res.push_back(topOp);
                     if (BStack.empty())
                         break;
                     topOp = BStack.back();
@@ -336,7 +457,7 @@ int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
             if (topPri > currentPri) {
                 while (true) {
                     BStack.pop_back();
-                    AStack.push_back(topOp);
+                    res.push_back(topOp);
                     if (BStack.empty())
                         break;
                     topOp = BStack.back();
@@ -351,9 +472,16 @@ int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
     }
     while (!BStack.empty()) {
         auto topOp = BStack.back();
-        AStack.push_back(topOp);
+        res.push_back(topOp);
         BStack.pop_back();
     }
+}
+
+int Statement::calculateExp(QVector<QPair<QString, Token::Kind>> &expr)
+{
+    QVector<QPair<QString, Token::Kind>> AStack;
+    expToPreStack(expr, AStack);
+    auto &variables = Text::variables;
     QVector<int> answerStack;
     for (const auto &item: AStack) {
         auto &kind = item.second;
@@ -414,8 +542,144 @@ StmtType Statement::setType(const QString &strType)
         return INPUT;
     if (strType == "REM")
         return REM;
-    QString errorMsg = "error: statement type error in\n" + rowLine;
-    emit sendError(errorMsg);
     Text::error = true;
     return WRONG;
+}
+
+void Statement::lineToTree()
+{
+    QVector<QString> exprTree;
+    switch (type) {
+        case IF:
+            if (!parseIf(exprTree)) return;
+            break;
+        case REM:
+            if (!parseRem(exprTree)) return;
+            break;
+        case INPUT:
+            if (!parseInput(exprTree)) return;
+            break;
+        case LET:
+            if (!parseLet(exprTree)) return;
+            break;
+        case PRINT:
+            if (!parsePrint(exprTree)) return;
+            break;
+        case END:
+            if (!parseEnd(exprTree)) return;
+            break;
+        case GOTO:
+            if (!parseGoto(exprTree)) return;
+            break;
+        default:
+            return;
+    }
+    for (int i = 0; i < exprTree.size() - 1; ++i) {
+        this->tree += exprTree[i] + "\n";
+    }
+    this->tree += exprTree.last();
+}
+
+bool Statement::checkGoto()
+{
+    if (!rowLine.contains("GOTO")
+        || splitLine.size() != 3
+        || splitLine.first().second != Token::Kind::Number
+        || splitLine.last().second != Token::Kind::Number) {
+        QString errorMsg = "error: expected syntax 'n1 GOTO n2' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+bool Statement::checkLet()
+{
+    if (!rowLine.contains("LET") || !rowLine.contains("=")
+        || splitLine.first().second != Token::Kind::Number
+        || splitLine.size() <= 4
+        || splitLine.at(3).second != Token::Kind::Equal) {
+        QString errorMsg = "error: expected syntax 'n1 GOTO n2' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+bool Statement::checkIf()
+{
+    if (!rowLine.contains("IF") || !rowLine.contains("THEN")
+        || splitLine.size() <= 5
+        || !(rowLine.contains(">") || rowLine.contains("=") || rowLine.contains("<"))
+        || splitLine.first().second != Token::Kind::Number
+        || splitLine.last().second != Token::Kind::Number) {
+        QString errorMsg = "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+bool Statement::checkPrint()
+{
+    if (!rowLine.contains("PRINT") || splitLine.size() <= 2
+        || splitLine.first().second != Token::Kind::Number) {
+        QString errorMsg = "error: expected syntax 'n PRINT expression' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+bool Statement::checkRem()
+{
+    if (!rowLine.contains("REM")
+        || splitLine.size() <= 2
+        || splitLine.first().second != Token::Kind::Number) {
+        QString errorMsg = "error: expected syntax 'n REM ...' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+bool Statement::checkEnd()
+{
+    if (!rowLine.contains("END")
+        || splitLine.size() < 2
+        || splitLine.first().second != Token::Kind::Number) {
+        QString errorMsg = "error: expected syntax 'n END' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+bool Statement::checkInput()
+{
+    if (!rowLine.contains("INPUT")
+        || splitLine.size() != 3
+        || splitLine.first().second != Token::Kind::Number) {
+        QString errorMsg = "error: expected syntax 'n INPUT variable' in\n" + rowLine;
+        emit sendError(errorMsg);
+        Text::error = true;
+        return false;
+    }
+    return true;
+}
+
+
+bool isOperator(Token::Kind kind)
+{
+    return kind == Token::Kind::Plus
+           || kind == Token::Kind::Minus
+           || kind == Token::Kind::Asterisk
+           || kind == Token::Kind::Slash
+           || kind == Token::Kind::Power;
 }

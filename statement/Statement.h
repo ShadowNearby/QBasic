@@ -23,6 +23,9 @@ class Statement : public QObject
 {
 Q_OBJECT
 public:
+    bool active = false;
+
+
     Statement() : type(WRONG)
     {};
 
@@ -34,31 +37,56 @@ public:
 
     Statement &operator=(const Statement &statement);
 
+    QString tree;
     QString rowLine;
     QVector<QPair<QString, Token::Kind>> splitLine;
     StmtType type;
+
 
     void parse(QString &line);
 
     bool exec();
 
-    [[nodiscard]] bool executeInput();
+    void executeInput();
 
-    [[nodiscard]] bool executeLet();
+    void executeLet();
 
     bool executeIf();
 
-    bool executePrint();
+    void executePrint();
 
-    [[nodiscard]] bool executeGoto();
+    void executeGoto();
 
-    void parseLet(QVector<QString> &);
+    void lineToTree();
 
-    void parseGoto(QVector<QString> &);
+    bool parseLet(QVector<QString> &);
 
-    void parseIf(QVector<QString> &);
+    bool parseGoto(QVector<QString> &);
 
-    void parsePrint(QVector<QString> &);
+    bool parseIf(QVector<QString> &);
+
+    bool parsePrint(QVector<QString> &);
+
+    bool parseRem(QVector<QString> &);
+
+    bool parseEnd(QVector<QString> &);
+
+    bool parseInput(QVector<QString> &);
+
+    bool checkLet();
+
+    bool checkGoto();
+
+    bool checkIf();
+
+    bool checkPrint();
+
+    bool checkRem();
+
+    bool checkEnd();
+
+    bool checkInput();
+
 
     int calculateExp(QVector<QPair<QString, Token::Kind>> &expr);
 
@@ -66,7 +94,9 @@ public:
 
     int calculateTwoNum(int a, int b, const Token::Kind &op);
 
-    void exprToTree(QString &res, QVector<QPair<QString, Token::Kind>> &expr);
+    void exprToTree(QVector<QString> &res, QVector<QPair<QString, Token::Kind>> &expr);
+
+    void expToPreStack(QVector<QPair<QString, Token::Kind>> &expr, QVector<QPair<QString, Token::Kind>> &res);
 
 signals:
 
@@ -81,6 +111,8 @@ public slots:
     void getInput(int value);
 
 };
+
+bool isOperator(Token::Kind kind);
 
 static Lexer lexer;
 static const QMap<int, int> Priority = QMap<int, int>(

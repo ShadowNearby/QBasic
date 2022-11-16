@@ -29,10 +29,17 @@ void Text::input(QString &rowText)
         auto strInputLine = inputLine.toStdString();
         lexer.setBeg(strInputLine.c_str());
         auto firstToken = lexer.next();
+        if (inputLine.isEmpty())
+            return;
         if (firstToken.is(Token::Kind::Number)) {
             int lineNum = stoi(firstToken.lexeme());
             Statement stmt(inputLine);
             lines[lineNum] = stmt;
+//            qDebug() << lines[lineNum].tree;
+        } else {
+            QString errorMsg = "error: expected line number in\n" + inputLine;
+            emit sendError(errorMsg);
+            Text::error = true;
         }
     }
 }

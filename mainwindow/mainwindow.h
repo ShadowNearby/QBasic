@@ -26,6 +26,8 @@ public:
 
     void execCommand(QString &command);
 
+    void connectLine(Statement &line);
+
 private slots:
 
     void cmdLineEdit_editingFinished();
@@ -43,6 +45,8 @@ public slots:
     void textBrowser_print(int value);
 
     void setCodeDisplayText();
+
+    void setTreeDisplayText();
 
     void cmdLineEdit_input();
 

@@ -1,5 +1,8 @@
 100 REM Program to print the Fibonacci sequence.
+101 LET p = 1
+102 LET q = 2
 110 LET max = 1000000
-111 INPUT n
-112 PRINT n
+111 LET max = 3-1-2+(-5)-6*7
+112 INPUT min
+113 PRIN
 120 PRINT max
