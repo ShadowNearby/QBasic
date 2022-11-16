@@ -29,7 +29,7 @@ void MainWindow::cmdLineEdit_editingFinished()
 
 void MainWindow::btnClearCode_clicked()
 {
-    Text::clear();
+    text->clear();
     ui->CodeDisplay->clear();
     ui->treeDisplay->clear();
     ui->textBrowser->clear();
@@ -44,8 +44,8 @@ void MainWindow::btnRunCode_clicked()
 
 void MainWindow::btnLoadCode_clicked()
 {
-//    QString filePath = QFileDialog::getOpenFileName();
-    QString filePath = "../basicSrc/case3";
+    QString filePath = QFileDialog::getOpenFileName();
+//    QString filePath = "../basicSrc/case3";
     parseFile(filePath);
 }
 
@@ -69,7 +69,7 @@ void MainWindow::parseFile(const QString &filePath)
         ui->textBrowser->append(errorMsg);
     }
     QTextStream in(&file);
-    Text::clear();
+    text->clear();
     auto allText = in.readAll();
     text->input(allText);
     auto &lines = Text::lines;

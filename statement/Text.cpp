@@ -62,6 +62,8 @@ void Text::executeProgram()
 
 void Text::clear()
 {
+    error = true;
+    QThread::msleep(10);
     currentLineNum = 0;
     lines.clear();
     variables.clear();
@@ -74,5 +76,10 @@ Text::Text(QObject *parent)
 void Text::run()
 {
     executeProgram();
+}
+
+Text::~Text()
+{
+    clear();
 }
 

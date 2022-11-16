@@ -14,6 +14,8 @@ public:
 
     Text(QObject *parent = nullptr);
 
+    ~Text() override;
+
     static bool waitForInput;
     static int currentLineNum;
     static QMap<int, Statement> lines;
@@ -26,7 +28,7 @@ public:
 
     void input(const char *rowText);
 
-    static void clear();
+    void clear();
 
     void executeProgram();
 
@@ -34,7 +36,7 @@ public:
 
 
 signals:
-    
+
     void sendError(QString &error);
 };
 
