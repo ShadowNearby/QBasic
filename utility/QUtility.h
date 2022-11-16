@@ -15,3 +15,4 @@
 #include <string>
 #include <QThread>
 #include <QException>
+#include <QQueue>

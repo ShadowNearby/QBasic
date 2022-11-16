@@ -48,7 +48,6 @@ Statement::Statement(const Statement &statement)
     this->tree = statement.tree;
 }
 
-
 bool Statement::exec()
 {
 
@@ -126,8 +125,7 @@ bool Statement::executeIf()
             rightExpr.push_back(cur);
     }
     if (leftExpr.empty() || rightExpr.empty()) {
-        QString errorMsg =
-                "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
+        QString errorMsg = "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
         emit sendError(errorMsg);
         Text::error = true;
         return true;
@@ -138,8 +136,7 @@ bool Statement::executeIf()
     if (compareRes) {
         int toLine = strToLine.toInt();
         if (Text::lines.find(toLine) == Text::lines.end()) {
-            QString errorMsg =
-                    "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
+            QString errorMsg = "error: expected syntax 'n1 IF expression1 operator expression2 THEN n2' in\n" + rowLine;
             emit sendError(errorMsg);
             Text::error = true;
             return true;
@@ -169,7 +166,6 @@ void Statement::executeGoto()
     auto &strToLine = splitLine.at(2).first;
     int toLine = strToLine.toInt();
     Text::currentLineNum = toLine;
-
 }
 
 void Statement::executeLet()
@@ -183,8 +179,8 @@ void Statement::executeLet()
         expr.push_back(splitLine[it]);
     int value = this->calculateExp(expr);
     Text::variables[varName.first] = value;
+    test(expr);
 }
-
 
 void Statement::getInput(int value)
 {
@@ -195,7 +191,6 @@ void Statement::getInput(int value)
     Text::waitForInput = false;
     active = false;
 }
-
 
 bool Statement::parseLet(QVector<QString> &exprTree)
 {
@@ -314,47 +309,52 @@ void Statement::exprToTree(QVector<QString> &res, QVector<QPair<QString, Token::
 {
     QVector<QPair<QString, Token::Kind>> exprStack;
     expToPreStack(expr, exprStack);
-    QVector<QPair<QString, Token::Kind>> resStack;
-    for (const auto &item: exprStack) {
-        auto &kind = item.second;
-//        auto &content = item.first;
+    //    QVector<QPair<QString, Token::Kind>> resStack;
+    //    QVector<QString> res;
+    QVector<BTree *> treeStack, exprTreeStack;
+    for (auto &item: exprStack)
+        exprTreeStack.push_back(new BTree(item));
+    BTree *cur;
+    for (auto &node: exprTreeStack) {
+        auto &kind = node->value.second;
+        //        auto &content = item.first;
         if (kind == Token::Kind::Identifier || kind == Token::Kind::Number) {
-            if (resStack.empty() || !isOperator(resStack.back().second))
-                resStack.push_back(item);
-            else
-                resStack.insert(resStack.end() - 1, item);
+            treeStack.push_back(node);
         } else if (isOperator(kind)) {
-            if (resStack.empty()) {
+            if (treeStack.empty()) {
                 QString errorMsg = "error: expression error in\n" + rowLine;
                 Text::error = true;
                 emit sendError(errorMsg);
                 return;
             }
-            auto var1 = resStack.back();
-            resStack.pop_back();
-            if (resStack.empty()) {
+            auto var1 = treeStack.back();
+            treeStack.pop_back();
+            if (treeStack.empty()) {
                 QString errorMsg = "error: expression error in\n" + rowLine;
                 Text::error = true;
                 emit sendError(errorMsg);
                 return;
             }
-            auto var2 = resStack.back();
-            resStack.pop_back();
-            res.push_front(var1.first);
-            res.push_front(var2.first);
-//            if (!resStack.empty()) {
-//                resStack.insert(resStack.end() - 1, content);
-//            } else
-            resStack.push_back(item);
-
+            auto var2 = treeStack.back();
+            treeStack.pop_back();
+            cur = node;
+            cur->left = var2;
+            cur->right = var1;
+            treeStack.push_back(cur);
         }
+
     }
-    res.push_front(resStack.first().first);
+    //    res.push_front(resStack.first().first);
+    QQueue<BTree *> queue;
+    queue.enqueue(treeStack.first());
+    QMap<int, QVector<QString>> viewRes;
     QString posOffset = "    ";
-    for (int i = 0; i < res.size(); ++i) {
-        if (i % 2 != 0)
-            posOffset += ' ';
-        res[i] = posOffset + res[i];
+    viewTree(treeStack.first(), viewRes, 0);
+    for (const auto &row: viewRes) {
+        for (const auto &item: row) {
+            res.push_back(posOffset + item);
+        }
+        posOffset += ' ';
     }
 }
 
@@ -551,25 +551,32 @@ void Statement::lineToTree()
     QVector<QString> exprTree;
     switch (type) {
         case IF:
-            if (!parseIf(exprTree)) return;
+            if (!parseIf(exprTree))
+                return;
             break;
         case REM:
-            if (!parseRem(exprTree)) return;
+            if (!parseRem(exprTree))
+                return;
             break;
         case INPUT:
-            if (!parseInput(exprTree)) return;
+            if (!parseInput(exprTree))
+                return;
             break;
         case LET:
-            if (!parseLet(exprTree)) return;
+            if (!parseLet(exprTree))
+                return;
             break;
         case PRINT:
-            if (!parsePrint(exprTree)) return;
+            if (!parsePrint(exprTree))
+                return;
             break;
         case END:
-            if (!parseEnd(exprTree)) return;
+            if (!parseEnd(exprTree))
+                return;
             break;
         case GOTO:
-            if (!parseGoto(exprTree)) return;
+            if (!parseGoto(exprTree))
+                return;
             break;
         default:
             return;
@@ -674,6 +681,40 @@ bool Statement::checkInput()
     return true;
 }
 
+void Statement::test(QVector<QPair<QString, Token::Kind>> &expr)
+{
+
+//    while (!queue.empty()) {
+//        BTree *node;
+//        node = queue.dequeue();
+//        std::cout << node->value.first.toStdString();
+//        if (!queue.empty() || node->left || node->right)
+//            std::cout << " ";
+//        if (node->left)
+//            queue.enqueue(node->left);
+//        if (node->right)
+//            queue.enqueue(node->right);
+//    }
+    //    QString posOffset = "    ";
+    //    for (int i = 0; i < res.size(); ++i) {
+    //        if (i % 2 != 0)
+    //            posOffset += ' ';
+    //        res[i] = posOffset + res[i];
+    //    }
+}
+
+void Statement::viewTree(BTree *root, QMap<int, QVector<QString>> &res, int deep)
+{
+    if (!root)
+        return;
+    if (res.find(deep) == res.end())
+        res[deep] = QVector<QString>(1, root->value.first);
+    else {
+        res[deep].push_back(root->value.first);
+    }
+    if (root->left) viewTree(root->left, res, deep + 1);
+    if (root->right) viewTree(root->right, res, deep + 1);
+}
 
 bool isOperator(Token::Kind kind)
 {

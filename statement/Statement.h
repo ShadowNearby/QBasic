@@ -19,6 +19,24 @@ enum StmtType
     WRONG
 };
 
+struct BTree
+{
+    BTree *left;
+    BTree *right;
+    QPair<QString, Token::Kind> value;
+
+    BTree()
+    {
+        left = right = nullptr;
+    }
+
+    BTree(QPair<QString, Token::Kind> &val)
+    {
+        left = right = nullptr;
+        value = val;
+    }
+};
+
 class Statement : public QObject
 {
 Q_OBJECT
@@ -42,6 +60,9 @@ public:
     QVector<QPair<QString, Token::Kind>> splitLine;
     StmtType type;
 
+    void test(QVector<QPair<QString, Token::Kind>> &);
+
+    void viewTree(BTree *, QMap<int, QVector<QString>> &, int deep);
 
     void parse(QString &line);
 
